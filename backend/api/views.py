@@ -1,7 +1,8 @@
 # API Views for Smart Dashboard
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum, Count
@@ -9,7 +10,7 @@ from django.utils import timezone
 from datetime import timedelta
 import random
 
-from .models import User, Task, Notification, Activity, Statistics
+from .models import Task, Notification, Activity, Statistics
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, LoginSerializer,
     TaskSerializer, NotificationSerializer, ActivitySerializer,
@@ -24,6 +25,8 @@ from .serializers import (
 class RegisterView(APIView):
     """User registration endpoint"""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
     
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
@@ -61,6 +64,8 @@ class RegisterView(APIView):
 class LoginView(APIView):
     """User login endpoint"""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
     
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -317,71 +322,3 @@ class StatisticsViewSet(viewsets.ReadOnlyModelViewSet):
                 }
             ]
         })
-
-
-# ===========================
-# Seed Data View (Development)
-# ===========================
-
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def seed_data(request):
-    """Seed initial data for development"""
-    # Create admin user if not exists
-    if not User.objects.filter(username='admin').exists():
-        admin = User.objects.create_user(
-            username='admin',
-            email='admin@example.com',
-            password='admin123',
-            first_name='أحمد',
-            last_name='محمد',
-            role='admin',
-            avatar_url='https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-        )
-        
-        # Create sample tasks
-        tasks = [
-            {'title': 'إعداد تقرير المبيعات الشهري', 'priority': 'high', 'due_date': '2026-01-14'},
-            {'title': 'اجتماع مع فريق التطوير', 'priority': 'medium', 'due_date': '2026-01-13'},
-            {'title': 'مراجعة عقود العملاء الجدد', 'priority': 'low', 'due_date': '2026-01-15', 'completed': True},
-            {'title': 'تحديث واجهة المستخدم', 'priority': 'high', 'due_date': '2026-01-16'},
-        ]
-        for task_data in tasks:
-            Task.objects.create(user=admin, **task_data)
-        
-        # Create sample notifications
-        notifications = [
-            {'title': 'طلب جديد', 'description': 'تم استلام طلب شراء جديد من أحمد علي', 'type': 'info'},
-            {'title': 'تحديث النظام', 'description': 'تم تحديث النظام بنجاح إلى الإصدار 2.5', 'type': 'success'},
-            {'title': 'تنبيه أمني', 'description': 'تم تسجيل دخول من جهاز جديد', 'type': 'warning'},
-            {'title': 'دفعة مالية', 'description': 'تم استلام دفعة بقيمة $5,000', 'type': 'success', 'is_read': True},
-        ]
-        for notif_data in notifications:
-            Notification.objects.create(user=admin, **notif_data)
-        
-        # Create sample activities
-        activities = [
-            {'type': 'success', 'icon': 'check', 'title': 'تم إكمال المشروع بنجاح'},
-            {'type': 'info', 'icon': 'user', 'title': 'انضمام عضو جديد للفريق'},
-            {'type': 'warning', 'icon': 'alert', 'title': 'تنبيه: موعد تسليم قريب'},
-            {'type': 'danger', 'icon': 'x', 'title': 'فشل في معالجة الدفعة'},
-        ]
-        for activity_data in activities:
-            Activity.objects.create(user=admin, **activity_data)
-        
-        # Create statistics
-        Statistics.objects.create(
-            record_date=timezone.now().date(),
-            revenue=156420,
-            active_users=12847,
-            completed_projects=342,
-            conversion_rate=24.8,
-            products_sales=35,
-            services_sales=25,
-            subscriptions_sales=25,
-            consulting_sales=15
-        )
-        
-        return Response({'message': 'تم إنشاء البيانات التجريبية بنجاح'}, status=status.HTTP_201_CREATED)
-    
-    return Response({'message': 'البيانات موجودة بالفعل'}, status=status.HTTP_200_OK)

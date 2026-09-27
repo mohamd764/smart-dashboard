@@ -1,6 +1,7 @@
 # Serializers for API
 from rest_framework import serializers
-from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import User, Task, Notification, Activity, Statistics
 
 
@@ -14,16 +15,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Serializer for user registration"""
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=True)
     
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name']
     
+    def validate_email(self, value):
+        # Login is by email, so it must identify exactly one account
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('هذا البريد الإلكتروني مستخدم بالفعل')
+        return value
+    
     def validate(self, data):
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError({'password_confirm': 'كلمات المرور غير متطابقة'})
+        candidate = User(
+            username=data.get('username'),
+            email=data.get('email'),
+            first_name=data.get('first_name', ''),
+            last_name=data.get('last_name', ''),
+        )
+        try:
+            validate_password(data['password'], user=candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)})
         return data
     
     def create(self, validated_data):
@@ -41,16 +59,19 @@ class LoginSerializer(serializers.Serializer):
         email = data.get('email')
         password = data.get('password')
         
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError({'email': 'لا يوجد حساب بهذا البريد الإلكتروني'})
+        # Same error for unknown email and wrong password to avoid account enumeration
+        invalid = serializers.ValidationError(
+            {'non_field_errors': ['البريد الإلكتروني أو كلمة المرور غير صحيحة']}
+        )
         
-        if not user.check_password(password):
-            raise serializers.ValidationError({'password': 'كلمة المرور غير صحيحة'})
+        user = User.objects.filter(email__iexact=email).order_by('id').first()
+        if user is None:
+            # Run the hasher anyway so response time does not reveal whether the email exists
+            User().set_password(password)
+            raise invalid
         
-        if not user.is_active:
-            raise serializers.ValidationError({'email': 'هذا الحساب غير مفعل'})
+        if not user.check_password(password) or not user.is_active:
+            raise invalid
         
         data['user'] = user
         return data

@@ -17,9 +17,6 @@ urlpatterns = [
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/me/', views.CurrentUserView.as_view(), name='current-user'),
     
-    # Seed data (development only)
-    path('seed/', views.seed_data, name='seed-data'),
-    
     # Router URLs
     path('', include(router.urls)),
 ]
