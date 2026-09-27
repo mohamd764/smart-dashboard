@@ -58,6 +58,16 @@ const notifications = [
     { title: 'اشتراك جديد', desc: 'تم تسجيل مشترك جديد في الخطة المميزة', time: 'منذ 3 ساعات', unread: false, type: 'info' }
 ];
 
+// Escape untrusted text before interpolating it into innerHTML templates
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // State
 let tasks = [...initialTasks];
 let currentTheme = 'dark';
@@ -398,16 +408,16 @@ function createTaskElement(task) {
     const priorityLabels = { high: 'عالية', medium: 'متوسطة', low: 'منخفضة' };
     
     div.innerHTML = `
-        <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-task-id="${task.id}">
+        <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-task-id="${escapeHtml(task.id)}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                 <path d="M20 6L9 17l-5-5"/>
             </svg>
         </div>
         <div class="task-content">
-            <div class="task-title">${task.title}</div>
+            <div class="task-title">${escapeHtml(task.title)}</div>
             <div class="task-meta">
-                <span class="task-date">${formatDate(task.date)}</span>
-                <span class="task-priority ${task.priority}">${priorityLabels[task.priority]}</span>
+                <span class="task-date">${escapeHtml(formatDate(task.date))}</span>
+                <span class="task-priority ${escapeHtml(task.priority)}">${escapeHtml(priorityLabels[task.priority])}</span>
             </div>
         </div>
     `;
@@ -475,14 +485,14 @@ function renderActivities() {
         const div = document.createElement('div');
         div.className = 'activity-item';
         div.innerHTML = `
-            <div class="activity-icon ${activity.type}">
+            <div class="activity-icon ${escapeHtml(activity.type)}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     ${icons[activity.icon]}
                 </svg>
             </div>
             <div class="activity-content">
-                <div class="activity-title">${activity.title}</div>
-                <div class="activity-time">${activity.time}</div>
+                <div class="activity-title">${escapeHtml(activity.title)}</div>
+                <div class="activity-time">${escapeHtml(activity.time)}</div>
             </div>
         `;
         elements.activityList.appendChild(div);
@@ -523,9 +533,9 @@ function renderNotifications() {
                 </svg>
             </div>
             <div class="notification-content">
-                <div class="notification-title">${notification.title}</div>
-                <div class="notification-desc">${notification.desc}</div>
-                <div class="notification-time">${notification.time}</div>
+                <div class="notification-title">${escapeHtml(notification.title)}</div>
+                <div class="notification-desc">${escapeHtml(notification.desc)}</div>
+                <div class="notification-time">${escapeHtml(notification.time)}</div>
             </div>
         `;
         elements.notificationsList.appendChild(div);
@@ -544,12 +554,12 @@ function showToast(type, message) {
     };
     
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = `toast ${escapeHtml(type)}`;
     toast.innerHTML = `
         <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             ${icons[type]}
         </svg>
-        <span class="toast-message">${message}</span>
+        <span class="toast-message">${escapeHtml(message)}</span>
     `;
     
     elements.toastContainer.appendChild(toast);
