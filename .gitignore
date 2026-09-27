@@ -8,11 +8,19 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.sqlite3
 
 # Virtual environments
 venv/
+.venv/
 env/
+
+# Secrets / local environment
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # IDE
 .vscode/
