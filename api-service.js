@@ -2,7 +2,8 @@
 // API Service - Backend Connection
 // ===========================
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Override by defining window.API_BASE_URL before this script loads
+const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000/api';
 
 class ApiService {
     constructor() {
@@ -218,19 +219,9 @@ class ApiService {
     }
 
     async getChartData(period = 'week') {
-        return await this.request(`/statistics/chart/?period=${period}`);
+        return await this.request(`/statistics/chart/?period=${encodeURIComponent(period)}`);
     }
 
-    // ===========================
-    // Seed Data (Development)
-    // ===========================
-
-    async seedData() {
-        return await fetch(`${API_BASE_URL}/seed/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        }).then(res => res.json());
-    }
 }
 
 // Create global instance
