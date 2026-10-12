@@ -16,19 +16,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        # 3.9 and 3.10 are end-of-life. Django 6 (installed from
+        # django>=5.0) requires Python >= 3.12.
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        # mysqlclient is built from source and needs the MySQL client headers.
+        sudo apt-get update
+        sudo apt-get install -y default-libmysqlclient-dev pkg-config build-essential
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python -m pip install flake8 pytest pytest-django
+        python -m pip install -r backend/requirements.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -36,5 +41,13 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
+      working-directory: backend
+      env:
+        DB_ENGINE: sqlite
+        DJANGO_DEBUG: "false"
+        # The test client speaks HTTP. Production still redirects unless this is set.
+        DJANGO_SECURE_SSL_REDIRECT: "false"
       run: |
+        # Per-job throwaway key so the workflow file contains no secret.
+        export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
         pytest
